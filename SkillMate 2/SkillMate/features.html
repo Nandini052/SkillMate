@@ -1,0 +1,159 @@
+<!-- features.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Features - SkillSwap</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script type="module" src="components/navbar.js"></script>
+    <script src="components/footer.js" defer></script>
+    <script src="components/feature-card.js" defer></script>
+    <script src="components/particle-background.js" defer></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-white to-indigo-50 min-h-screen flex flex-col">
+    <custom-navbar></custom-navbar>
+
+    <main class="flex-grow">
+        <!-- Hero Section -->
+        <section class="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+            <particle-background></particle-background>
+            <div class="max-w-7xl mx-auto relative z-10">
+                <div class="text-center animate-on-scroll" data-animation="fadeUp">
+                    <h1 class="text-4xl md:text-6xl font-bold text-gray-800 mb-6 gradient-text">
+                        Powerful Features
+                    </h1>
+                    <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-10">
+                        Discover how SkillSwap helps you learn, teach, and grow with peers
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section class="py-16 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-7xl mx-auto">
+                <div class="grid lg:grid-cols-2 gap-12 items-center mb-20">
+                    <div class="animate-on-scroll" data-animation="fadeLeft">
+                        <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                            <i data-feather="users" class="text-white w-8 h-8"></i>
+                        </div>
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">Smart Matching Algorithm</h2>
+                        <p class="text-gray-600 text-lg mb-6">
+                            Our AI-powered system finds the perfect skill exchange partners based on your interests, availability, and learning goals.
+                        </p>
+                        <ul class="space-y-3">
+                            <li class="flex items-center text-gray-700">
+                                <i data-feather="check" class="text-green-500 w-5 h-5 mr-3"></i>
+                                Personalized partner recommendations
+                            </li>
+                            <li class="flex items-center text-gray-700">
+                                <i data-feather="check" class="text-green-500 w-5 h-5 mr-3"></i>
+                                Skill compatibility scoring
+                            </li>
+                            <li class="flex items-center text-gray-700">
+                                <i data-feather="check" class="text-green-500 w-5 h-5 mr-3"></i>
+                                Schedule optimization
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="animate-on-scroll" data-animation="fadeRight">
+                        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 text-white shadow-2xl transform hover:scale-105 transition duration-500">
+                            <div class="glass-card bg-white/10 rounded-2xl p-6 backdrop-blur-lg">
+                                <h3 class="text-xl font-bold mb-4">Match Preview</h3>
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between">
+                                        <span>Compatibility</span>
+                                        <span class="font-bold">92%</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span>Skills Match</span>
+                                        <span class="font-bold">8/10</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span>Schedule Fit</span>
+                                        <span class="font-bold">Excellent</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature Cards -->
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <feature-card 
+                        icon="video"
+                        title="Video Sessions"
+                        description="HD video calls with screen sharing and virtual whiteboard"
+                        gradient="from-blue-500 to-cyan-500"
+                    ></feature-card>
+                    
+                    <feature-card 
+                        icon="message-circle"
+                        title="Real-time Chat"
+                        description="Instant messaging with file sharing and code snippets"
+                        gradient="from-green-500 to-emerald-500"
+                    ></feature-card>
+                    
+                    <feature-card 
+                        icon="award"
+                        title="Skill Badges"
+                        description="Earn verifiable badges as you master new skills"
+                        gradient="from-yellow-500 to-orange-500"
+                    ></feature-card>
+                    
+                    <feature-card 
+                        icon="calendar"
+                        title="Smart Scheduling"
+                        description="Automated scheduling that works across timezones"
+                        gradient="from-purple-500 to-pink-500"
+                    ></feature-card>
+                    
+                    <feature-card 
+                        icon="bar-chart-2"
+                        title="Progress Tracking"
+                        description="Visualize your learning journey with detailed analytics"
+                        gradient="from-indigo-500 to-blue-500"
+                    ></feature-card>
+                    
+                    <feature-card 
+                        icon="shield"
+                        title="Safe Community"
+                        description="Verified users and community guidelines for safe learning"
+                        gradient="from-red-500 to-pink-500"
+                    ></feature-card>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-indigo-500 to-purple-600">
+            <div class="max-w-4xl mx-auto text-center text-white">
+                <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to Start Your Skill Journey?</h2>
+                <p class="text-xl text-indigo-100 mb-8">Join thousands of learners and teachers on SkillSwap</p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="register.html" class="bg-white text-indigo-600 px-8 py-4 rounded-lg font-bold hover:bg-gray-100 transition duration-300 transform hover:scale-105">
+                        Sign Up Free
+                    </a>
+                    <a href="community.html" class="border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white hover:text-indigo-600 transition duration-300 transform hover:scale-105">
+                        Explore Community
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <custom-footer></custom-footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+            new ScrollAnimations();
+        });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

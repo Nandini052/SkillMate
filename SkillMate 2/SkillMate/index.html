@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkillMate | Peer Learning Platform</title>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <!-- Components -->
+  <script type="module" src="components/navbar.js" defer></script>
+  <script src="components/footer.js" defer></script>
+  <script src="components/skill-card.js" defer></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <custom-navbar></custom-navbar>
+
+  <main class="flex-grow">
+    <!-- 🌟 Hero Section -->
+    <section class="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-indigo-500 to-purple-600">
+      <div class="max-w-7xl mx-auto text-center text-white">
+        <h1 class="text-4xl md:text-6xl font-bold mb-6">Swap Skills, Grow Together</h1>
+        <p class="text-xl text-indigo-100 max-w-3xl mx-auto mb-10">
+          Connect with peers to exchange knowledge and skills. Teach what you know, learn what you need.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <button 
+            id="getStartedBtn" 
+            class="btn bg-white text-indigo-600 px-8 py-4 rounded-lg font-bold hover:bg-indigo-100 transition">
+            Get Started
+          </button>
+
+          <a href="#how-it-works"
+            class="border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white hover:text-indigo-600 transition duration-300">
+            How It Works
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⚙️ How It Works Section -->
+    <section id="how-it-works" class="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+      <div class="max-w-7xl mx-auto">
+        <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">How SkillMate Works</h2>
+        <div class="grid md:grid-cols-4 gap-8">
+          <div class="text-center">
+            <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-feather="user-plus" class="text-indigo-600 w-8 h-8"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">1. Sign Up</h3>
+            <p class="text-gray-600">Create your free account in seconds</p>
+          </div>
+          <div class="text-center">
+            <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-feather="award" class="text-indigo-600 w-8 h-8"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">2. Add Skills</h3>
+            <p class="text-gray-600">List what you can teach and want to learn</p>
+          </div>
+          <div class="text-center">
+            <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-feather="users" class="text-indigo-600 w-8 h-8"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">3. Find Matches</h3>
+            <p class="text-gray-600">Get matched with perfect skill partners</p>
+          </div>
+          <div class="text-center">
+            <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-feather="message-circle" class="text-indigo-600 w-8 h-8"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">4. Start Swapping</h3>
+            <p class="text-gray-600">Chat, schedule sessions, and learn together</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 📈 Stats Section -->
+    <section class="py-16 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div>
+            <div class="text-3xl font-bold text-indigo-600 mb-2" id="usersCount">0</div>
+            <div class="text-gray-600">Active Users</div>
+          </div>
+          <div>
+            <div class="text-3xl font-bold text-green-600 mb-2" id="skillsCount">0</div>
+            <div class="text-gray-600">Skills Available</div>
+          </div>
+          <div>
+            <div class="text-3xl font-bold text-blue-600 mb-2" id="matchesCount">0</div>
+            <div class="text-gray-600">Successful Matches</div>
+          </div>
+          <div>
+            <div class="text-3xl font-bold text-purple-600 mb-2" id="sessionsCount">0</div>
+            <div class="text-gray-600">Learning Sessions</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <custom-footer></custom-footer>
+
+  <!-- ✅ Main JS Logic -->
+  <script type="module">
+    import { auth } from "./utils/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+  
+    document.addEventListener("DOMContentLoaded", () => {
+      feather.replace();
+  
+      const btn = document.getElementById("getStartedBtn");
+  
+      btn.addEventListener("click", () => {
+        const user = auth.currentUser;
+        if (user) {
+          window.location.href = "dashboard.html";
+        } else {
+          window.location.href = "auth.html";
+        }
+      });
+  
+      // ✅ Do NOT redirect automatically here.
+      // Just update navbar or do nothing if user exists.
+      onAuthStateChanged(auth, (user) => {
+        console.log("Auth checked on index:", user ? "✅ logged in" : "🚫 not logged in");
+      });
+  
+      // Animate stats
+      const animateCounter = (elementId, target) => {
+        let current = 0;
+        const increment = target / 50;
+        const timer = setInterval(() => {
+          current += increment;
+          if (current >= target) {
+            current = target;
+            clearInterval(timer);
+          }
+          document.getElementById(elementId).textContent = Math.floor(current);
+        }, 40);
+      };
+  
+      setTimeout(() => {
+        animateCounter("usersCount", 1247);
+        animateCounter("skillsCount", 89);
+        animateCounter("matchesCount", 543);
+        animateCounter("sessionsCount", 892);
+      }, 800);
+    });
+  </script>
+  
+
+  <!-- 🧩 Restore Test Data Function -->
+  <script>
+    function restoreTestData() {
+      localStorage.clear();
+      const testUsers = [
+        {
+          id: "user1",
+          name: "Ishita Jain",
+          skillsOffered: ["Web Development", "Python"],
+          skillsWanted: ["UI/UX Design", "Firebase"],
+          pendingRequests: 2
+        }
+      ];
+      localStorage.setItem('skillswap_users', JSON.stringify(testUsers));
+      localStorage.setItem('skillswap_current_user', JSON.stringify(testUsers[0]));
+      const session = { userId: "user1", token: "test-token", expiresAt: Date.now() + (24 * 60 * 60 * 1000) };
+      localStorage.setItem('skillswap_session', JSON.stringify(session));
+      alert('✅ Test data restored! Logged in as Ishita Jain with 2 pending requests.');
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+    }
+  </script>
+</body>
+</html>

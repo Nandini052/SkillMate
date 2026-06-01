@@ -1,0 +1,182 @@
+<!-- register.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - SkillSwap</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script type="module" src="components/navbar.js"></script>
+
+    <script src="components/footer.js" defer></script>
+    <script src="components/particle-background.js" defer></script>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen flex flex-col">
+    <custom-navbar></custom-navbar>
+
+    <main class="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <particle-background></particle-background>
+        
+        <div class="max-w-md w-full space-y-8 animate-on-scroll" data-animation="fadeUp">
+            <div class="text-center">
+                <div class="mx-auto w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                    <i data-feather="user-plus" class="text-white w-8 h-8"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Join SkillSwap</h2>
+                <p class="text-gray-600">Start your skill exchange journey today</p>
+            </div>
+
+            <div class="glass-card bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
+                <form class="space-y-6" id="registerForm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                            <input type="text" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                                placeholder="John">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                            <input type="text" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                                placeholder="Doe">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" required 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                            placeholder="john@example.com">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" required 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                            placeholder="••••••••">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Skills You Offer</label>
+                        <div class="flex flex-wrap gap-2 mb-3" id="skillsContainer">
+                            <!-- Skills will be added here -->
+                        </div>
+                        <input type="text" id="skillInput"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                            placeholder="Add a skill (e.g., Web Development)">
+                        <button type="button" onclick="addSkill()" 
+                            class="mt-2 text-indigo-600 text-sm font-medium hover:text-indigo-700 transition duration-200">
+                            + Add Skill
+                        </button>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Skills You Want to Learn</label>
+                        <div class="flex flex-wrap gap-2 mb-3" id="learnSkillsContainer">
+                            <!-- Learning skills will be added here -->
+                        </div>
+                        <input type="text" id="learnSkillInput"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                            placeholder="Add a skill you want to learn">
+                        <button type="button" onclick="addLearnSkill()" 
+                            class="mt-2 text-indigo-600 text-sm font-medium hover:text-indigo-700 transition duration-200">
+                            + Add Skill to Learn
+                        </button>
+                    </div>
+
+                    <button type="submit" 
+                        class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                        Create Account
+                    </button>
+
+                    <div class="text-center">
+                        <p class="text-gray-600">
+                            Already have an account? 
+                            <a href="login.html" class="text-indigo-600 hover:text-indigo-700 font-medium transition duration-200">
+                                Sign in
+                            </a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <custom-footer></custom-footer>
+
+    <script>
+        // Interactive skill tags
+        function addSkill() {
+            const input = document.getElementById('skillInput');
+            const container = document.getElementById('skillsContainer');
+            addSkillTag(input, container, 'offer');
+        }
+
+        function addLearnSkill() {
+            const input = document.getElementById('learnSkillInput');
+            const container = document.getElementById('learnSkillsContainer');
+            addSkillTag(input, container, 'learn');
+        }
+
+        function addSkillTag(input, container, type) {
+            const skill = input.value.trim();
+            if (skill) {
+                const skillElement = document.createElement('div');
+                skillElement.className = `skill-tag ${type === 'offer' ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'} px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 transition-all duration-200 hover:scale-105`;
+                skillElement.innerHTML = `
+                    <span>${skill}</span>
+                    <button type="button" onclick="this.parentElement.remove()" class="hover:scale-125 transition-transform duration-200">
+                        <i data-feather="x" class="w-3 h-3"></i>
+                    </button>
+                `;
+                container.appendChild(skillElement);
+                input.value = '';
+                feather.replace();
+            }
+        }
+
+        // Form submission
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            // Add your registration logic here
+            alert('Account created successfully! Redirecting to dashboard...');
+            window.location.href = 'dashboard.html';
+        });
+
+        // Initialize animations
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+            new ScrollAnimations();
+        });
+    </script>
+    <script src="script.js"></script>
+
+
+    //database
+    <script type="module">
+        import { AuthSystem } from "./utils/auth.js";
+      
+        const form = document.getElementById("register-form");
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+      
+          const firstName = document.getElementById("firstName").value;
+          const lastName = document.getElementById("lastName").value;
+          const email = document.getElementById("email").value;
+          const password = document.getElementById("password").value;
+      
+          try {
+            await AuthSystem.register({ firstName, lastName, email, password });
+            alert("Signup successful!");
+            window.location.href = "dashboard.html";
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      </script>
+      
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - SkillMate</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <script type="module" src="components/navbar.js"></script>
+  <script src="components/footer.js"></script>
+  <script type="module" src="utils/matchmaking.js"></script>
+  <script type="module" src="utils/request-system.js"></script>
+  <script src="utils/test-data-loader.js"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <custom-navbar></custom-navbar>
+
+  <main class="flex-grow py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+
+      <!-- Welcome -->
+      <div class="mb-8 text-center">
+        <h1 id="welcomeMessage" class="text-4xl font-bold text-gray-800 mb-3">Welcome back!</h1>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+          Connect with peers, exchange skills, and grow together.
+        </p>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <div class="stat-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div class="flex items-center">
+            <div class="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mr-4 text-white shadow-lg">
+              <i data-feather="users"></i>
+            </div>
+            <div>
+              <div id="matchesCount" class="text-2xl font-bold text-gray-800">0</div>
+              <div class="text-gray-600 text-sm">Potential Matches</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div class="flex items-center">
+            <div class="w-14 h-14 bg-green-600 rounded-2xl flex items-center justify-center mr-4 text-white shadow-lg">
+              <i data-feather="check-circle"></i>
+            </div>
+            <div>
+              <div id="connectionsCount" class="text-2xl font-bold text-gray-800">0</div>
+              <div class="text-gray-600 text-sm">Connections</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div class="flex items-center">
+            <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mr-4 text-white shadow-lg">
+              <i data-feather="user-plus"></i>
+            </div>
+            <div>
+              <div id="requestsCount" class="text-2xl font-bold text-gray-800">0</div>
+              <div class="text-gray-600 text-sm">Pending Requests</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div class="flex items-center">
+            <div class="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mr-4 text-white shadow-lg">
+              <i data-feather="award"></i>
+            </div>
+            <div>
+              <div id="skillsCount" class="text-2xl font-bold text-gray-800">0</div>
+              <div class="text-gray-600 text-sm">Your Skills</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Requests, Matches, and Connections -->
+      <section id="dashboardContent" class="hidden">
+        
+        <!-- Incoming Requests -->
+        <div id="requestsSection" class="bg-white rounded-2xl p-8 border border-gray-100 mb-8">
+          <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+            <i data-feather="inbox" class="w-6 h-6 mr-3 text-blue-600"></i>
+            Swap Requests
+          </h2>
+          <div id="requestsContainer" class="space-y-4 text-gray-600">
+            <p>No pending requests.</p>
+          </div>
+        </div>
+
+        <!-- Outgoing (Your Sent) Requests -->
+        <div id="yourRequestsSection" class="bg-white rounded-2xl p-8 border border-gray-100 mb-8">
+          <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+            <i data-feather="send" class="w-6 h-6 mr-3 text-purple-600"></i>
+            Your Requests
+          </h2>
+          <div id="yourRequestsContainer" class="space-y-4 text-gray-600">
+            <p>No requests sent yet.</p>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+          <div class="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Potential Matches</h2>
+            <div id="matchesContainer" class="space-y-4 text-gray-600">
+              <p>Loading matches...</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Connections</h2>
+            <div id="connectionsContainer" class="space-y-4 text-gray-600">
+              <p>Loading connections...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <custom-footer></custom-footer>
+
+  <!-- Firebase Auth Check + Dashboard Logic -->
+  <script type="module">
+    import { auth, db } from "./utils/firebase-config.js";
+    import { collection, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { RequestSystem } from "./utils/request-system.js";
+  
+    document.addEventListener("DOMContentLoaded", async () => {
+      feather.replace();
+  
+      let hasRedirected = false;
+  
+      auth.onAuthStateChanged(async (user) => {
+        if (hasRedirected) return;
+  
+        setTimeout(async () => {
+          if (!user && !hasRedirected) {
+            hasRedirected = true;
+            window.location.replace("auth.html");
+            return;
+          }
+  
+          if (user) {
+            const usersSnapshot = await getDocs(collection(db, "users"));
+            const allUsers = usersSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const currentUser =
+              allUsers.find(u => u.id === user.uid) ||
+              { id: user.uid, firstName: user.displayName || "User", email: user.email };
+  
+            document.getElementById("welcomeMessage").textContent = `Welcome back, ${currentUser.firstName || "User"}!`;
+            document.getElementById("dashboardContent").classList.remove("hidden");
+  
+            await loadDashboard(user.uid, allUsers);
+          }
+        }, 500);
+      });
+  
+      // ------------------------
+      //  SAFE TIMESTAMP FORMATTER
+      // ------------------------
+      function formatTimestamp(ts) {
+        if (!ts) return "";
+        try {
+          if (ts.toDate) return ts.toDate().toLocaleString();     // Firestore Timestamp
+          if (ts.toMillis) return new Date(ts.toMillis()).toLocaleString();
+          if (typeof ts === "number") return new Date(ts).toLocaleString();
+          if (typeof ts === "string") {
+            const d = new Date(ts);
+            return isNaN(d) ? "" : d.toLocaleString();
+          }
+        } catch (e) {}
+        return "";
+      }
+  
+      // ------------------------
+      //  DASHBOARD LOGIC
+      // ------------------------
+      async function loadDashboard(currentUserId, allUsers) {
+        const pendingRequests = await RequestSystem.getPendingRequests(currentUserId);
+        const sentRequests = await RequestSystem.getSentRequests(currentUserId);
+        const connections = await RequestSystem.getConnections(currentUserId);
+  
+        renderRequests(pendingRequests, currentUserId, allUsers);
+        renderYourRequests(sentRequests, currentUserId, allUsers);
+        renderConnections(connections, allUsers);
+  
+        document.getElementById("requestsCount").textContent = pendingRequests.length;
+        document.getElementById("connectionsCount").textContent = connections.length;
+        document.getElementById("skillsCount").textContent =
+          (allUsers.find(u => u.id === currentUserId)?.skills_offered || []).length || 0;
+  
+        renderMatches(allUsers.filter(u => u.id !== currentUserId), currentUserId);
+      }
+  
+      // ------------------------
+      //  INCOMING REQUESTS
+      // ------------------------
+      function renderRequests(requests, currentUserId, allUsers) {
+        const container = document.getElementById("requestsContainer");
+        container.innerHTML = "";
+  
+        if (!requests?.length) {
+          container.innerHTML = `<p class="text-gray-600">No pending requests.</p>`;
+          return;
+        }
+  
+        for (const req of requests) {
+          const sender = allUsers.find(u => u.id === req.fromUserId) || { firstName: "User", email: "" };
+          const timeLabel = formatTimestamp(req.createdAt);
+  
+          const card = document.createElement("div");
+          card.className =
+            "p-4 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition";
+  
+          card.innerHTML = `
+            <div>
+              <p class="font-semibold text-gray-800">${escapeHtml(req.message || "Let's connect!")}</p>
+              <p class="text-sm text-gray-600">From: ${escapeHtml(sender.firstName || sender.email)}</p>
+              ${timeLabel ? `<p class="text-sm text-gray-500">Sent: ${timeLabel}</p>` : ""}
+            </div>
+            <div class="space-x-2">
+              <button class="accept-btn bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition">Accept</button>
+              <button class="reject-btn bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">Reject</button>
+            </div>
+          `;
+  
+          card.querySelector(".accept-btn").addEventListener("click", async () => {
+            await RequestSystem.acceptRequest(currentUserId, req.id);
+            await reload(currentUserId);
+          });
+  
+          card.querySelector(".reject-btn").addEventListener("click", async () => {
+            await RequestSystem.rejectRequest(currentUserId, req.id);
+            await reload(currentUserId);
+          });
+  
+          container.appendChild(card);
+        }
+      }
+  
+      // ------------------------
+      //  OUTGOING REQUESTS
+      // ------------------------
+      function renderYourRequests(sentRequests, currentUserId, allUsers) {
+        const container = document.getElementById("yourRequestsContainer");
+        container.innerHTML = "";
+  
+        const visible = (sentRequests || []).filter(r => r.status !== 'accepted');
+  
+        if (!visible.length) {
+          container.innerHTML = `<p class="text-gray-500 text-center">No requests sent yet.</p>`;
+          return;
+        }
+  
+        for (const req of visible) {
+          const recipient = allUsers.find(u => u.id === req.toUserId) || { firstName: "User", email: req.toUserId };
+  
+          const div = document.createElement("div");
+          div.className =
+            "p-4 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition";
+  
+          div.innerHTML = `
+            <div>
+              <p class="font-semibold text-gray-800">${escapeHtml(req.message || "Let's connect!")}</p>
+              <p class="text-sm text-gray-600">To: ${escapeHtml(recipient.firstName || recipient.email)}</p>
+              <p class="text-sm text-gray-500">Status: ${escapeHtml(req.status)}</p>
+            </div>
+            <button class="cancel-btn text-red-600 hover:underline">Cancel</button>
+          `;
+  
+          div.querySelector(".cancel-btn").addEventListener("click", async () => {
+            if (!confirm("Withdraw this request?")) return;
+            await RequestSystem.rejectRequest(req.toUserId, req.id);
+            await reload(currentUserId);
+          });
+  
+          container.appendChild(div);
+        }
+      }
+  
+      // ------------------------
+      //  CONNECTIONS
+      // ------------------------
+      function renderConnections(connections, allUsers) {
+        const container = document.getElementById("connectionsContainer");
+        container.innerHTML = "";
+  
+        if (!connections || !connections.length) {
+          container.innerHTML = `<p class="text-gray-600">You have no active connections yet.</p>`;
+          return;
+        }
+  
+        for (const connId of connections) {
+          const user = allUsers.find(u => u.id === connId);
+          if (!user) continue;
+  
+          const connCard = document.createElement("div");
+          connCard.className =
+            "p-4 border border-gray-200 rounded-lg flex justify-between items-center bg-white hover:shadow-sm transition";
+  
+          connCard.innerHTML = `
+            <div class="flex items-center space-x-4">
+              <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || user.email)}&background=6366f1&color=fff" class="w-10 h-10 rounded-full">
+              <div>
+                <p class="font-semibold text-gray-800">${escapeHtml(user.firstName || user.email)}</p>
+                <p class="text-sm text-gray-600">${escapeHtml(user.email || "")}</p>
+              </div>
+            </div>
+            <button class="chat-btn bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Chat</button>
+          `;
+  
+          connCard.querySelector(".chat-btn").addEventListener("click", () => {
+            window.location.href = `chat.html?user=${user.id}`;
+          });
+  
+          container.appendChild(connCard);
+        }
+      }
+  
+      // ------------------------
+      //  MATCHES
+      // ------------------------
+      function renderMatches(matches, currentUserId) {
+        const container = document.getElementById("matchesContainer");
+        container.innerHTML = "";
+  
+        if (!matches.length) {
+          container.innerHTML = `<p class="text-gray-600">No users available to match.</p>`;
+          return;
+        }
+  
+        for (const user of matches) {
+          const card = document.createElement("div");
+          card.className =
+            "p-4 border border-gray-200 rounded-lg flex justify-between items-center bg-white hover:shadow transition";
+  
+          card.innerHTML = `
+            <div class="flex items-center space-x-4">
+              <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || user.email)}&background=6366f1&color=fff" class="w-10 h-10 rounded-full">
+              <div>
+                <p class="font-semibold text-gray-800">${escapeHtml(user.firstName || user.email)}</p>
+                <p class="text-sm text-gray-600">${escapeHtml(user.email)}</p>
+              </div>
+            </div>
+            <button class="send-btn bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Send Request</button>
+          `;
+  
+          card.querySelector(".send-btn").addEventListener("click", async () => {
+            const res = await RequestSystem.sendRequest(currentUserId, user.id);
+            alert(res.message);
+            await reload(currentUserId);
+          });
+  
+          container.appendChild(card);
+        }
+      }
+  
+      // ------------------------
+      //  RELOAD
+      // ------------------------
+      async function reload(currentUserId) {
+        const snapshot = await getDocs(collection(db, "users"));
+        const allUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        await loadDashboard(currentUserId, allUsers);
+      }
+  
+      function escapeHtml(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+    });
+  </script>
+  
+
+  
+</body>
+</html>

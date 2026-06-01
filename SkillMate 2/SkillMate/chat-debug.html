@@ -1,0 +1,263 @@
+<!-- chat-debug.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Debug - SkillSwap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Chat Debug Panel</h1>
+        
+        <!-- Debug Controls -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">1. First, Create Test Users</h2>
+            <button onclick="createTestUsers()" class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition duration-200">
+                Create Test Users
+            </button>
+            <button onclick="clearAllData()" class="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition duration-200 ml-4">
+                Clear All Data
+            </button>
+        </div>
+
+        <!-- User Status -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">2. Check Current Status</h2>
+            <div id="status" class="text-gray-600">
+                Checking...
+            </div>
+        </div>
+
+        <!-- Test Chat Interface -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-xl font-semibold mb-4">3. Test Chat</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Users List -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h3 class="font-semibold mb-3">Available Users</h3>
+                    <div id="usersList" class="space-y-2">
+                        <!-- Users will appear here -->
+                    </div>
+                </div>
+
+                <!-- Chat Area -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h3 class="font-semibold mb-3">Chat with: <span id="chatWith">No one selected</span></h3>
+                    <div class="h-48 border border-gray-200 rounded p-3 mb-3 overflow-y-auto" id="chatMessages">
+                        <div class="text-gray-500 text-center">Select a user to start chatting</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chatInput" placeholder="Type a message..." 
+                            class="flex-1 border border-gray-300 rounded px-3 py-2" disabled>
+                        <button id="sendChat" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-200" disabled>
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Info -->
+        <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="font-semibold text-yellow-800 mb-2">Debug Information</h3>
+            <pre id="debugInfo" class="text-sm text-yellow-700 overflow-auto"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Simple test data creation
+        function createTestUsers() {
+            const testUsers = [
+                {
+                    id: "user1",
+                    firstName: "Sarah",
+                    lastName: "Chen",
+                    email: "sarah@example.com",
+                    password: "123",
+                    avatar: "https://ui-avatars.com/api/?name=Sarah+Chen&background=6366f1&color=fff",
+                    skillsOffered: ["Web Development", "JavaScript"],
+                    skillsNeeded: ["Graphic Design"],
+                    profileComplete: true,
+                    connections: []
+                },
+                {
+                    id: "user2",
+                    firstName: "Marcus",
+                    lastName: "Rodriguez", 
+                    email: "marcus@example.com",
+                    password: "123",
+                    avatar: "https://ui-avatars.com/api/?name=Marcus+Rodriguez&background=00b894&color=fff",
+                    skillsOffered: ["Graphic Design", "UI/UX"],
+                    skillsNeeded: ["Web Development"],
+                    profileComplete: true,
+                    connections: []
+                },
+                {
+                    id: "user3", 
+                    firstName: "Aisha",
+                    lastName: "Johnson",
+                    email: "aisha@example.com", 
+                    password: "123",
+                    avatar: "https://ui-avatars.com/api/?name=Aisha+Johnson&background=fd79a8&color=fff",
+                    skillsOffered: ["Data Science", "Python"],
+                    skillsNeeded: ["Spanish"],
+                    profileComplete: true,
+                    connections: []
+                }
+            ];
+
+            localStorage.setItem('skillswap_users', JSON.stringify(testUsers));
+            
+            // Set current user for testing
+            const currentUser = testUsers[0];
+            localStorage.setItem('skillswap_current_user', JSON.stringify(currentUser));
+            
+            updateStatus();
+            loadUsersList();
+            showDebugInfo('Test users created successfully! Logged in as Sarah Chen.');
+        }
+
+        function clearAllData() {
+            localStorage.removeItem('skillswap_users');
+            localStorage.removeItem('skillswap_current_user');
+            localStorage.removeItem('skillswap_session');
+            updateStatus();
+            document.getElementById('usersList').innerHTML = '';
+            document.getElementById('chatMessages').innerHTML = '<div class="text-gray-500 text-center">Select a user to start chatting</div>';
+            showDebugInfo('All data cleared!');
+        }
+
+        function updateStatus() {
+            const users = JSON.parse(localStorage.getItem('skillswap_users') || '[]');
+            const currentUser = JSON.parse(localStorage.getItem('skillswap_current_user') || 'null');
+            
+            let statusHTML = `
+                <div class="space-y-2">
+                    <div><strong>Total Users:</strong> ${users.length}</div>
+                    <div><strong>Current User:</strong> ${currentUser ? currentUser.firstName + ' ' + currentUser.lastName : 'Not logged in'}</div>
+                    <div><strong>Users in Storage:</strong> ${users.map(u => u.firstName).join(', ') || 'None'}</div>
+                </div>
+            `;
+            
+            document.getElementById('status').innerHTML = statusHTML;
+        }
+
+        function loadUsersList() {
+            const users = JSON.parse(localStorage.getItem('skillswap_users') || '[]');
+            const currentUser = JSON.parse(localStorage.getItem('skillswap_current_user') || 'null');
+            
+            const otherUsers = users.filter(user => user.id !== currentUser?.id);
+            
+            const usersList = document.getElementById('usersList');
+            
+            if (otherUsers.length === 0) {
+                usersList.innerHTML = '<div class="text-gray-500 text-center py-4">No users found. Click "Create Test Users" above.</div>';
+            } else {
+                usersList.innerHTML = otherUsers.map(user => `
+                    <div class="flex items-center justify-between p-3 border border-gray-200 rounded hover:bg-gray-50 cursor-pointer" 
+                         onclick="selectUser('${user.id}')">
+                        <div class="flex items-center space-x-3">
+                            <img src="${user.avatar}" alt="${user.firstName}" class="w-8 h-8 rounded-full">
+                            <div>
+                                <div class="font-medium">${user.firstName} ${user.lastName}</div>
+                                <div class="text-sm text-gray-600">${user.skillsOffered[0]}</div>
+                            </div>
+                        </div>
+                        <button class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition duration-200">
+                            Chat
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        let selectedUserId = null;
+
+        function selectUser(userId) {
+            const users = JSON.parse(localStorage.getItem('skillswap_users') || '[]');
+            const user = users.find(u => u.id === userId);
+            
+            if (user) {
+                selectedUserId = userId;
+                document.getElementById('chatWith').textContent = `${user.firstName} ${user.lastName}`;
+                document.getElementById('chatInput').disabled = false;
+                document.getElementById('sendChat').disabled = false;
+                document.getElementById('chatInput').focus();
+                
+                // Load chat history
+                loadChatHistory(userId);
+            }
+        }
+
+        function loadChatHistory(userId) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // Simple mock messages
+            const messages = [
+                { text: "Hi! I'm interested in learning from you.", sender: userId, time: "2:30 PM" },
+                { text: "That's great! What would you like to learn?", sender: "current", time: "2:31 PM" },
+                { text: "I saw you offer Web Development. Can you help me get started?", sender: userId, time: "2:32 PM" }
+            ];
+            
+            chatMessages.innerHTML = messages.map(msg => `
+                <div class="flex ${msg.sender === 'current' ? 'justify-end' : 'justify-start'} mb-2">
+                    <div class="max-w-xs px-3 py-2 rounded-lg ${msg.sender === 'current' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}">
+                        <div class="text-sm">${msg.text}</div>
+                        <div class="text-xs opacity-70 mt-1">${msg.time}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message || !selectedUserId) return;
+            
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // Add new message
+            const messageElement = document.createElement('div');
+            messageElement.className = 'flex justify-end mb-2';
+            messageElement.innerHTML = `
+                <div class="max-w-xs px-3 py-2 rounded-lg bg-blue-500 text-white">
+                    <div class="text-sm">${message}</div>
+                    <div class="text-xs opacity-70 mt-1">Just now</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageElement);
+            input.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            showDebugInfo(`Message sent to user ${selectedUserId}: "${message}"`);
+        }
+
+        function showDebugInfo(message) {
+            const debugInfo = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            debugInfo.textContent += `[${timestamp}] ${message}\n`;
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+
+        // Initialize
+        document.getElementById('sendChat').addEventListener('click', sendMessage);
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Check initial status
+        updateStatus();
+        loadUsersList();
+        showDebugInfo('Debug panel loaded. Click "Create Test Users" to start.');
+
+        feather.replace();
+    </script>
+</body>
+</html>

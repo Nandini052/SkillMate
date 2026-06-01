@@ -1,0 +1,82 @@
+/* Enhanced styles for new pages */
+.skill-tag {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Feature card hover effects */
+  .feature-card {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.05), transparent);
+    transition: left 0.6s ease;
+  }
+  
+  .feature-card:hover::before {
+    left: 100%;
+  }
+  
+  /* Glass card enhancements */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Form input focus effects */
+  input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+  
+  /* Gradient backgrounds */
+  .bg-gradient-custom {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .bubble {
+    white-space: pre-wrap; /* keeps line breaks but allows wrapping */
+    word-break: break-word; /* prevents overflow */
+    display: inline-block; /* prevents vertical stacking of letters */
+  }
+  /* --- Chat bubble layout --- */
+.bubble {
+  max-width: 65%;
+  padding: 0.7rem 1rem;
+  border-radius: 18px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.bubble.me {
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  color: #fff;
+  border-bottom-right-radius: 6px;
+  margin-right: 4px;
+}
+
+.bubble.other {
+  background: #f3f4f6;
+  color: #111827;
+  border-bottom-left-radius: 6px;
+  margin-left: 4px;
+}

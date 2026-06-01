@@ -1,0 +1,294 @@
+<!-- skills.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Skills Marketplace - SkillMate</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <!-- navbar/footer as you had them -->
+  <script type="module" src="components/navbar.js" defer></script>
+  <script src="components/footer.js" defer></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <custom-navbar></custom-navbar>
+
+  <main class="flex-grow py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Skills Marketplace</h1>
+        <p class="text-gray-600">Browse all available skills and find your perfect learning partner</p>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
+        <div class="flex flex-col md:flex-row gap-4 items-center">
+          <div class="flex-1 w-full relative">
+            <i data-feather="search" class="absolute left-3 top-3 text-gray-400 w-5 h-5"></i>
+            <input id="searchInput" type="text"
+              class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              placeholder="Search skills..." />
+          </div>
+
+          <select id="categoryFilter"
+            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+            <option value="">All Categories</option>
+            <option value="technology">Technology</option>
+            <option value="design">Design</option>
+            <option value="language">Language</option>
+            <option value="business">Business</option>
+            <option value="creative">Creative</option>
+            <option value="academic">Academic</option>
+            <option value="other">Other</option>
+          </select>
+
+          <select id="typeFilter"
+            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+            <option value="all">All Skills</option>
+            <option value="offered">Skills Offered</option>
+            <option value="needed">Skills Needed</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Skills -->
+      <div class="mb-8">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-gray-800">Available Skills</h2>
+          <div id="skillsCount" class="text-gray-600">Loading...</div>
+        </div>
+
+        <div id="skillsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- cards injected here -->
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-8 text-center text-white">
+        <h3 class="text-2xl font-bold mb-4">Have Skills to Share?</h3>
+        <p class="text-indigo-100 mb-6 max-w-2xl mx-auto">Join our community of learners and teachers. Share your expertise while learning new skills from peers.</p>
+        <a href="dashboard.html" class="bg-white text-indigo-600 px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition">Add Your Skills</a>
+      </div>
+    </div>
+  </main>
+
+  <custom-footer></custom-footer>
+
+  <!-- ===== FIREBASE BACKEND LOGIC (copy/paste-ready) ===== -->
+  <script type="module">
+    // Ensure your utils/firebase-config.js exports { db, auth }
+    import { db, auth } from './utils/firebase-config.js';
+    import {
+      collection,
+      getDocs
+    } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+
+    const skillsContainer = document.getElementById('skillsContainer');
+    const skillsCount = document.getElementById('skillsCount');
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const typeFilter = document.getElementById('typeFilter');
+
+    // holds all skills loaded from other users (excludes current user)
+    let allSkills = [];
+
+    // run after DOM ready and firebase auth ready
+    document.addEventListener('DOMContentLoaded', () => {
+      feather.replace();
+      // guard: wait for auth state
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          // not logged in — show message, but still let frontend search be visible
+          skillsContainer.innerHTML = '<div class="col-span-full text-center py-12 text-gray-600">Please log in to view skills.</div>';
+          skillsCount.textContent = '0 skills';
+          return;
+        }
+        // load skills for connections (excluding current user's skills)
+        await loadSkillsExcludingCurrent(user.uid);
+        setupFilters(); // wire events
+      });
+    });
+
+    // load all users, build skill list but exclude current user's uid
+    async function loadSkillsExcludingCurrent(currentUid) {
+      skillsContainer.innerHTML = '<p>Loading...</p>';
+      allSkills = [];
+
+      try {
+        // get all user docs
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        usersSnapshot.forEach(docSnap => {
+          const uid = docSnap.id;        // crucial: doc id is the uid (as your screenshot showed)
+          if (uid === currentUid) return; // <-- exclude logged-in user's own profile
+
+          const userData = docSnap.data() || {};
+          const displayName = userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : (userData.name || 'User');
+
+          // push offered skills
+          if (Array.isArray(userData.skillsOffered)) {
+            userData.skillsOffered.forEach(skill => {
+              if (!skill) return;
+              allSkills.push({
+                name: skill,
+                type: 'offered',
+                category: categorizeSkill(skill),
+                user: {
+                  uid,
+                  displayName,
+                  avatar: userData.avatar || userData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff`,
+                  skillsOffered: userData.skillsOffered || [],
+                  skillsNeeded: userData.skillsNeeded || []
+                }
+              });
+            });
+          }
+
+          // push needed skills
+          if (Array.isArray(userData.skillsNeeded)) {
+            userData.skillsNeeded.forEach(skill => {
+              if (!skill) return;
+              allSkills.push({
+                name: skill,
+                type: 'needed',
+                category: categorizeSkill(skill),
+                user: {
+                  uid,
+                  displayName,
+                  avatar: userData.avatar || userData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff`,
+                  skillsOffered: userData.skillsOffered || [],
+                  skillsNeeded: userData.skillsNeeded || []
+                }
+              });
+            });
+          }
+        });
+
+        // initial render (unfiltered)
+        renderSkills(allSkills);
+      } catch (err) {
+        console.error('Error loading users/skills:', err);
+        skillsContainer.innerHTML = '<div class="col-span-full text-center py-12 text-red-500">Failed to load skills. Check console.</div>';
+        skillsCount.textContent = '0 skills';
+      }
+    }
+
+    // basic keyword -> category mapping
+    function categorizeSkill(skill) {
+      const map = {
+        technology: ['coding','programming','react','python','data','machine','html','css','web development','javascript','web', 'java','c++','c#','ruby','php','sql','database','node','angular','vue','django','flask','game development'],
+        design: ['design','figma','ui','ux','photoshop','illustrator'],
+        language: ['english','spanish','french','german','mandarin','language'],
+        business: ['marketing','finance','business','entrepreneur','sales'],
+        creative: ['music','art','writing','photo','video','photography'],
+        academic: ['math','science','physics','chemistry','history','research']
+      };
+      const s = (skill || '').toLowerCase();
+      for (const [cat, keywords] of Object.entries(map)) {
+        if (keywords.some(k => s.includes(k))) return cat;
+      }
+      return 'other';
+    }
+
+    // attach input/change listeners
+    function setupFilters() {
+      searchInput.addEventListener('input', applyFilters);
+      categoryFilter.addEventListener('change', applyFilters);
+      typeFilter.addEventListener('change', applyFilters);
+    }
+
+    // apply chained filters to allSkills and re-render
+    function applyFilters() {
+      const q = (searchInput.value || '').trim().toLowerCase();
+      const cat = categoryFilter.value;
+      const type = typeFilter.value;
+
+      const filtered = allSkills.filter(item => {
+        const matchSearch = !q || (item.name || '').toLowerCase().includes(q) || (item.user.displayName || '').toLowerCase().includes(q);
+        const matchCat = !cat || item.category === cat;
+        const matchType = !type || type === 'all' || item.type === type;
+        return matchSearch && matchCat && matchType;
+      });
+
+      renderSkills(filtered);
+    }
+
+    // render skill cards into the grid
+    function renderSkills(skills) {
+      skillsContainer.innerHTML = '';
+      skillsCount.textContent = `${skills.length} skills found`;
+
+      if (!skills.length) {
+        skillsContainer.innerHTML = `
+          <div class="col-span-full text-center py-12">
+            <i data-feather="search" class="w-16 h-16 mx-auto mb-4 text-gray-300"></i>
+            <h3 class="text-lg font-semibold text-gray-600 mb-2">No skills found</h3>
+            <p class="text-gray-500">Try adjusting your search criteria</p>
+          </div>`;
+        feather.replace();
+        return;
+      }
+
+      // build cards
+      skills.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition duration-200';
+
+        // escape small pieces
+        const safeSkill = escapeHtml(item.name);
+        const safeCategory = escapeHtml(item.category);
+        const safeTypeLabel = item.type === 'offered' ? 'Offered' : 'Needed';
+        const displayName = escapeHtml(item.user.displayName || 'User');
+        const avatar = escapeHtml(item.user.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png');
+        const offeredCount = (item.user.skillsOffered || []).length;
+        const neededCount = (item.user.skillsNeeded || []).length;
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <span class="inline-block px-3 py-1 text-xs font-medium rounded-full ${item.type === 'offered' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                ${safeTypeLabel}
+              </span>
+              <span class="inline-block ml-2 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                ${safeCategory}
+              </span>
+            </div>
+            <a href="profile-view.html?user=${encodeURIComponent(item.user.uid)}" class="text-indigo-600 hover:text-indigo-700 transition text-sm">Profile</a>
+          </div>
+
+          <h3 class="font-semibold text-gray-800 text-lg mb-2">${safeSkill}</h3>
+
+          <div class="flex items-center mt-4 pt-4 border-t border-gray-100">
+            <img src="${avatar}" alt="${displayName}" class="w-8 h-8 rounded-full mr-3" />
+            <div class="flex-1">
+              <a href="profile-view.html?user=${encodeURIComponent(item.user.uid)}" class="font-medium text-gray-800 hover:text-indigo-600">${displayName}</a>
+              <div class="text-sm text-gray-600">
+                ${offeredCount} offered • ${neededCount} needed
+              </div>
+            </div>
+          </div>
+        `;
+        skillsContainer.appendChild(card);
+      });
+
+      feather.replace();
+    }
+
+    // small helper to escape text for HTML insertion
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, s => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[s]));
+    }
+  </script>
+</body>
+</html>

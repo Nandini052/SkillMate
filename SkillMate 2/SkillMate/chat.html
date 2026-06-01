@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat — SkillMate</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <script type="module" src="components/navbar.js" defer></script>
+  <script type="module" src="components/footer.js" defer></script>
+
+  <style>
+    .chat-area { height: calc(100vh - 220px); overflow-y: auto; padding: 1rem; }
+
+    /* Bubble Fix */
+    .bubble {
+      max-width: 70%;
+      min-width: 110px;
+      padding: 0.6rem .9rem;
+      border-radius: 16px;
+      white-space: normal;
+      word-break: break-word;
+      display: inline-block;
+    }
+
+    .bubble.me {
+      background: linear-gradient(90deg,#6366f1,#8b5cf6);
+      color: #fff;
+      border-bottom-right-radius: 6px;
+      margin-right: 6px;
+    }
+
+    .bubble.other {
+      background: #f3f4f6;
+      color: #111827;
+      border-bottom-left-radius: 6px;
+      margin-left: 6px;
+    }
+
+    .msg-meta { font-size: .72rem; color: #6b7280; margin-top: .25rem; text-align: right; }
+
+    .avatar-sm { width:36px; height:36px; border-radius:9999px; object-fit:cover; }
+
+    #contactsContainer::-webkit-scrollbar { width: 7px; }
+    #contactsContainer::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 8px; }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+  <custom-navbar></custom-navbar>
+
+  <main class="flex h-[calc(100vh-80px)] bg-gray-100 overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside id="chatList" class="w-1/3 border-r border-gray-200 bg-white overflow-y-auto">
+      <div class="p-4 border-b flex justify-between items-center">
+        <h2 class="text-xl font-bold text-gray-800">Chats</h2>
+        <button id="refreshChats" class="text-sm text-indigo-600 hover:underline">Refresh</button>
+      </div>
+      <div id="contactsContainer" class="divide-y"></div>
+    </aside>
+
+    <!-- Chat Area -->
+    <section class="flex-1 flex flex-col bg-white">
+      <div id="chatHeader" class="p-4 border-b flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <img id="chatUserPic" class="w-10 h-10 rounded-full" src="">
+          <div>
+            <a id="chatUserName" class="font-semibold hover:underline">No conversation</a>
+            <p id="chatUserStatus" class="text-sm text-green-500">Offline</p>
+          </div>
+        </div>
+        <button id="openProfileBtn" class="text-sm text-indigo-600 hover:underline">Profile</button>
+      </div>
+
+      <!-- Messages -->
+      <div id="messagesContainer" class="chat-area bg-gray-50"></div>
+
+      <!-- Input -->
+      <div class="p-4 border-t flex space-x-3 items-center">
+        <input id="messageInput" type="text"
+          placeholder="Type a message..."
+          class="flex-1 border rounded-full px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+        <button id="sendMessageBtn"
+          class="bg-indigo-600 text-white rounded-full px-4 py-2 hover:bg-indigo-700">Send</button>
+      </div>
+    </section>
+
+  </main>
+
+  <custom-footer></custom-footer>
+
+  <script type="module">
+    import { auth, db } from './utils/firebase-config.js';
+    import {
+      doc, getDoc, setDoc, collection, addDoc,
+      query, orderBy, onSnapshot, serverTimestamp,
+      updateDoc, where
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    document.addEventListener('DOMContentLoaded', () => feather.replace());
+
+    // ------------------------------
+    // state
+    // ------------------------------
+    let currentUser = null;
+    let partnerUserId = null;
+    let partnerData = null;
+    let chatId = null;
+
+    let messagesUnsub = null;
+    let chatsListUnsub = null;
+
+    const contactsContainer = document.getElementById('contactsContainer');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendMessageBtn');
+    const chatUserPic = document.getElementById('chatUserPic');
+    const chatUserName = document.getElementById('chatUserName');
+    const chatUserStatus = document.getElementById('chatUserStatus');
+    const refreshBtn = document.getElementById('refreshChats');
+
+    // contactMap holds connections (uid -> meta)
+    const contactMap = new Map();
+
+    // store pending chat updates if they arrive before contactMap is ready
+    const pendingChatUpdates = new Map();
+
+    // ------------------------------
+    // helpers
+    // ------------------------------
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
+    }
+
+    function makeChatId(a,b){ if(!a||!b) return null; return [a,b].sort().join('_'); }
+    function tsToMillis(ts) {
+      if (!ts) return 0;
+      if (typeof ts.toMillis === 'function') return ts.toMillis();
+      if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+      return (new Date(ts)).getTime();
+    }
+    function fmtTimeMillis(ms) {
+      if (!ms) return '';
+      const d = new Date(ms);
+      const hh = d.getHours(), mm = String(d.getMinutes()).padStart(2,'0');
+      const am = hh >= 12 ? 'PM' : 'AM';
+      const hh12 = ((hh + 11) % 12) + 1;
+      return `${hh12}:${mm} ${am}`;
+    }
+
+    // ------------------------------
+    // AUTH
+    // ------------------------------
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = 'auth.html';
+        return;
+      }
+      currentUser = user;
+
+      // always load contacts first (ensures sidebar is correct)
+      await loadContacts();
+
+      // start listening to chats (will update lastMessage/time)
+      startChatsListener();
+
+      // if opened with ?user=UID (coming from Dashboard) open it automatically
+      const urlUser = new URLSearchParams(window.location.search).get('user');
+      if (urlUser) {
+        // ensure partner is present in sidebar and then open
+        await ensureContactPresent(urlUser);
+        openChatWith(urlUser);
+      } else {
+        messagesContainer.innerHTML = `<div class="p-6 text-gray-600">Select someone to chat with.</div>`;
+      }
+    });
+
+    // ------------------------------
+    // LOAD CONTACTS
+    // ------------------------------
+    async function loadContacts() {
+      contactsContainer.innerHTML = `<div class="p-4 text-gray-500">Loading contacts...</div>`;
+      contactMap.clear();
+
+      try {
+        const uRef = doc(db, 'users', currentUser.uid);
+        const uSnap = await getDoc(uRef);
+        const uData = uSnap.exists() ? uSnap.data() : {};
+        const connections = Array.isArray(uData.connections) ? uData.connections : [];
+
+        // fetch profile docs in parallel
+        const promises = connections.map(uid => getDoc(doc(db, 'users', uid)).then(s => ({ uid, s })));
+        const results = await Promise.all(promises);
+
+        for (const { uid, s } of results) {
+          const d = s.exists() ? s.data() : {};
+          contactMap.set(uid, {
+            uid,
+            firstName: d.firstName || d.email || 'User',
+            lastName: d.lastName || '',
+            avatar: d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.firstName||'User')}&background=6366f1&color=fff`,
+            lastMessage: '',
+            lastUpdated: 0,
+            chatExists: false
+          });
+
+          // If pending updates arrived earlier for this uid, apply them
+          if (pendingChatUpdates.has(uid)) {
+            const upd = pendingChatUpdates.get(uid);
+            applyChatUpdateToContact(uid, upd.lastMessage, upd.lastUpdated);
+            pendingChatUpdates.delete(uid);
+          }
+        }
+
+        renderContacts();
+      } catch (e) {
+        console.error('loadContacts error', e);
+        contactsContainer.innerHTML = `<div class="p-6 text-red-500">Failed to load contacts. Check console.</div>`;
+      }
+    }
+
+    // ensure a user appears in contactMap (used when came directly to chat from dashboard)
+    async function ensureContactPresent(uid) {
+      if (contactMap.has(uid)) return;
+      try {
+        const s = await getDoc(doc(db,'users',uid));
+        const d = s.exists() ? s.data() : {};
+        contactMap.set(uid, {
+          uid,
+          firstName: d.firstName || d.email || 'User',
+          lastName: d.lastName || '',
+          avatar: d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.firstName||'User')}&background=6366f1&color=fff`,
+          lastMessage: '',
+          lastUpdated: 0,
+          chatExists: false
+        });
+        renderContacts();
+      } catch (e) {
+        console.warn('ensureContactPresent failed', e);
+      }
+    }
+
+    // ------------------------------
+    // START CHATS LISTENER (updates lastMessage/time)
+    // ------------------------------
+    function startChatsListener() {
+      if (chatsListUnsub) chatsListUnsub();
+
+      const chatsRef = collection(db, 'chats');
+      const q = query(chatsRef, where('participants','array-contains', currentUser.uid), orderBy('lastUpdated','desc'));
+
+      chatsListUnsub = onSnapshot(q, snapshot => {
+        snapshot.forEach(docSnap => {
+          const id = docSnap.id;
+          const data = docSnap.data();
+          const other = (data.participants || []).find(u => u !== currentUser.uid);
+          if (!other) return;
+
+          const lastMessage = data.lastMessage || '';
+          const lastUpdated = tsToMillis(data.lastUpdated);
+
+          if (contactMap.has(other)) {
+            applyChatUpdateToContact(other, lastMessage, lastUpdated);
+          } else {
+            // contactMap isn't ready or this other isn't a connection — store pending update
+            pendingChatUpdates.set(other, { lastMessage, lastUpdated });
+          }
+        });
+        renderContacts();
+      }, err => {
+        console.error('chats listener error', err);
+        // if error, we still allow manual refresh
+      });
+    }
+
+    // apply chat update to an existing contact entry
+    function applyChatUpdateToContact(uid, lastMessage, lastUpdated) {
+      const entry = contactMap.get(uid);
+      if (!entry) {
+        // if entry missing but we have pending data, stash it for later
+        pendingChatUpdates.set(uid, { lastMessage, lastUpdated });
+        return;
+      }
+      entry.lastMessage = lastMessage || '';
+      entry.lastUpdated = lastUpdated || entry.lastUpdated || 0;
+      entry.chatExists = true;
+      contactMap.set(uid, entry);
+    }
+
+    // ------------------------------
+    // RENDER CONTACT SIDEBAR
+    // ------------------------------
+    function renderContacts() {
+      const contacts = Array.from(contactMap.values())
+        .sort((a,b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
+
+      contactsContainer.innerHTML = '';
+
+      if (!contacts.length) {
+        contactsContainer.innerHTML = `<div class="p-6 text-gray-600">No connections yet. Connect from the Dashboard.</div>`;
+        return;
+      }
+
+      for (const c of contacts) {
+        const when = c.lastUpdated ? fmtTimeMillis(c.lastUpdated) : '';
+        const item = document.createElement('div');
+        item.className = 'p-3 flex items-center gap-3 contact-item cursor-pointer hover:bg-gray-50';
+        item.innerHTML = `
+          <img src="${c.avatar}" class="w-10 h-10 rounded-full" />
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <div class="contact-name truncate">${escapeHtml(c.firstName)} ${escapeHtml(c.lastName||'')}</div>
+              <div class="text-xs text-gray-400">${when}</div>
+            </div>
+            <div class="text-sm contact-last truncate text-gray-600">${escapeHtml(c.lastMessage || (c.chatExists ? '(no messages yet)' : 'No chat yet'))}</div>
+          </div>
+        `;
+        item.addEventListener('click', async () => {
+          // open chat and update URL param
+          await ensureContactPresent(c.uid); // ensure present
+          openChatWith(c.uid);
+          const url = new URL(window.location);
+          url.searchParams.set('user', c.uid);
+          window.history.replaceState({}, '', url);
+        });
+        contactsContainer.appendChild(item);
+      }
+    }
+
+    // ------------------------------
+    // OPEN CHAT (ensures chat doc and listeners)
+    // ------------------------------
+    async function openChatWith(uid) {
+      partnerUserId = uid;
+      chatId = makeChatId(currentUser.uid, uid);
+
+      // create chat doc if missing
+      const chatRef = doc(db, 'chats', chatId);
+      const cSnap = await getDoc(chatRef);
+      if (!cSnap.exists()) {
+        await setDoc(chatRef, {
+          participants: [currentUser.uid, uid],
+          createdAt: serverTimestamp(),
+          lastMessage: '',
+          lastUpdated: serverTimestamp()
+        });
+      }
+
+      // ensure the partner is present in sidebar
+      await ensureContactPresent(uid);
+
+      // load partner header and start messages listener
+      await loadPartner(uid);
+      listenMessages();
+
+      // refresh sidebar to highlight latest order
+      renderContacts();
+    }
+
+    // ------------------------------
+    // LOAD PARTNER HEADER
+    // ------------------------------
+    async function loadPartner(uid) {
+      try {
+        const s = await getDoc(doc(db, 'users', uid));
+        const d = s.exists() ? s.data() : {};
+        partnerData = d;
+        chatUserPic.src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.firstName||'User')}&background=6366f1&color=fff`;
+        chatUserName.textContent = d.firstName ? `${d.firstName} ${d.lastName||''}`.trim() : (d.email || 'User');
+        // simple status: if doc exists, show Online (you can add real presence later)
+        chatUserStatus.textContent = 'Online';
+      } catch (e) {
+        console.error('loadPartner', e);
+        chatUserName.textContent = 'User';
+        chatUserStatus.textContent = 'Offline';
+      }
+    }
+
+    // ------------------------------
+    // LISTEN MESSAGES (for current chatId)
+    // ------------------------------
+    function listenMessages() {
+      if (!chatId) return;
+      if (messagesUnsub) messagesUnsub();
+
+      const msgsRef = collection(db, 'chats', chatId, 'messages');
+      const q = query(msgsRef, orderBy('timestamp', 'asc'));
+
+      messagesUnsub = onSnapshot(q, snap => {
+        messagesContainer.innerHTML = '';
+        snap.forEach(docSnap => {
+          const m = docSnap.data();
+          renderMessage(m);
+        });
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }, err => {
+        console.error('messages listener error', err);
+      });
+    }
+
+    // ------------------------------
+    // RENDER MESSAGE
+    // ------------------------------
+    function renderMessage(m) {
+      const wrap = document.createElement('div');
+      const isMe = m.senderId === currentUser.uid;
+      wrap.className = `mb-4 flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`;
+
+      // message text cleanup
+      let raw = m.text || m.message || '';
+      if (Array.isArray(raw)) raw = raw.join('');
+      raw = String(raw).replace(/\n+/g, ' ').trim();
+
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${isMe ? 'me' : 'other'}`;
+      bubble.innerHTML = escapeHtml(raw);
+
+      // meta (timestamp)
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      const ts = m.timestamp ? tsToMillis(m.timestamp) : Date.now();
+      meta.textContent = fmtTimeMillis(ts);
+
+      if (!isMe) {
+        const avatar = document.createElement('img');
+        avatar.src = partnerData?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(partnerData?.firstName||'User')}&background=6366f1&color=fff`;
+        avatar.className = 'avatar-sm';
+        wrap.appendChild(avatar);
+        const block = document.createElement('div');
+        block.appendChild(bubble);
+        block.appendChild(meta);
+        wrap.appendChild(block);
+      } else {
+        const block = document.createElement('div');
+        block.className = 'text-right';
+        block.appendChild(bubble);
+        block.appendChild(meta);
+        wrap.appendChild(block);
+
+        const avatar = document.createElement('img');
+        avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((currentUser.displayName||'Me').split(' ')[0])}&background=6366f1&color=fff`;
+        avatar.className = 'avatar-sm';
+        wrap.appendChild(avatar);
+      }
+
+      messagesContainer.appendChild(wrap);
+    }
+
+    // ------------------------------
+    // SEND MESSAGE
+    // ------------------------------
+    async function sendMessage() {
+      const text = messageInput.value.trim().replace(/\n+/g, ' ');
+      if (!text || !chatId) return;
+
+      try {
+        await addDoc(collection(db, 'chats', chatId, 'messages'), {
+          text,
+          senderId: currentUser.uid,
+          timestamp: serverTimestamp()
+        });
+
+        // update chat doc so sidebar picks up lastMessage immediately
+        await updateDoc(doc(db, 'chats', chatId), {
+          lastMessage: text,
+          lastUpdated: serverTimestamp()
+        });
+
+        // Optimistic UI: update local contactMap so sidebar reacts quickly
+        if (partnerUserId && contactMap.has(partnerUserId)) {
+          applyChatUpdateToContact(partnerUserId, text, Date.now());
+          renderContacts();
+        }
+
+        messageInput.value = '';
+        messageInput.focus();
+      } catch (e) {
+        console.error('sendMessage error', e);
+        alert('Failed to send message. See console.');
+      }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // ------------------------------
+    // UI events
+    // ------------------------------
+    refreshBtn.addEventListener('click', async () => {
+      await loadContacts();
+    });
+
+    document.getElementById('openProfileBtn').addEventListener('click', () => {
+      if (partnerUserId) window.location.href = `profile-view.html?user=${partnerUserId}`;
+      else alert('No user selected.');
+    });
+
+    // cleanup
+    window.addEventListener('beforeunload', () => {
+      if (messagesUnsub) messagesUnsub();
+      if (chatsListUnsub) chatsListUnsub();
+    });
+  </script>
+
+</body>
+</html>

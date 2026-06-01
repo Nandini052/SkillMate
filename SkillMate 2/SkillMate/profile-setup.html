@@ -1,0 +1,292 @@
+<!-- profile-setup.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup Profile - SkillSwap</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <!-- Components -->
+  <script type="module" src="components/navbar.js"></script>
+  <script type="module" src="components/footer.js"></script>
+
+  <!-- Firebase + Utilities -->
+  <script type="module" src="utils/firebase-config.js"></script>
+  <script type="module" src="utils/auth.js"></script>
+  <script type="module" src="utils/database.js"></script>
+</head>
+
+<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen flex flex-col">
+  <custom-navbar></custom-navbar>
+
+  <main class="flex-grow py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+      <!-- Progress Steps -->
+      <div class="flex justify-center mb-12">
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center">
+            <div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
+            <div class="ml-2 text-sm font-medium text-indigo-600">Account</div>
+          </div>
+          <div class="w-12 h-0.5 bg-indigo-600"></div>
+          <div class="flex items-center">
+            <div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
+            <div class="ml-2 text-sm font-medium text-indigo-600">Profile</div>
+          </div>
+          <div class="w-12 h-0.5 bg-gray-300"></div>
+          <div class="flex items-center">
+            <div class="w-8 h-8 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">3</div>
+            <div class="ml-2 text-sm font-medium text-gray-500">Dashboard</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Form -->
+      <div class="bg-white rounded-2xl shadow-xl p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Complete Your Profile</h1>
+        <p class="text-gray-600 mb-8">Tell us about your skills and what you want to learn</p>
+
+        <form id="profileForm" class="space-y-8">
+          <!-- Skills Offered -->
+          <div>
+            <label class="block text-lg font-semibold text-gray-800 mb-4">
+              <i data-feather="award" class="w-5 h-5 inline mr-2 text-green-500"></i>
+              Skills You Can Teach
+            </label>
+            <div id="skillsOfferedContainer" class="flex flex-wrap gap-2 mb-4"></div>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="skillOfferedInput"
+                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+                placeholder="e.g., Web Development, Graphic Design, Spanish"
+              />
+              <button
+                type="button"
+                id="addOfferedSkillBtn"
+                class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition duration-200 font-medium"
+              >
+                Add Skill
+              </button>
+            </div>
+          </div>
+
+          <!-- Skills Needed -->
+          <div>
+            <label class="block text-lg font-semibold text-gray-800 mb-4">
+              <i data-feather="book-open" class="w-5 h-5 inline mr-2 text-blue-500"></i>
+              Skills You Want to Learn
+            </label>
+            <div id="skillsNeededContainer" class="flex flex-wrap gap-2 mb-4"></div>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="skillNeededInput"
+                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                placeholder="e.g., Data Science, Music Production, French"
+              />
+              <button
+                type="button"
+                id="addNeededSkillBtn"
+                class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition duration-200 font-medium"
+              >
+                Add Skill
+              </button>
+            </div>
+          </div>
+
+          <!-- Bio -->
+          <div>
+            <label class="block text-lg font-semibold text-gray-800 mb-4">
+              <i data-feather="user" class="w-5 h-5 inline mr-2 text-purple-500"></i>
+              About You
+            </label>
+            <textarea
+              id="userBio"
+              rows="4"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+              placeholder="Tell others about your background, teaching style, and learning goals..."
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end pt-6 border-t border-gray-200">
+            <button
+              type="submit"
+              class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-3 rounded-lg font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Complete Profile & Find Matches
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <custom-footer></custom-footer>
+
+  <!-- Main Script -->
+  <script type="module">
+    import { auth } from "./utils/firebase-config.js";
+    import { Database } from "./utils/database.js";
+  
+    let skillsOffered = [];
+    let skillsNeeded = [];
+  
+    const offeredContainer = document.getElementById("skillsOfferedContainer");
+    const neededContainer = document.getElementById("skillsNeededContainer");
+  
+    // --------------------------------------------------
+    // 🔥 MAIN AUTH CHECK — Handle old + new users
+    // --------------------------------------------------
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = "auth.html";
+        return;
+      }
+  
+      const data = await Database.getUser(user.uid);
+      console.log("🔎 profileComplete:", data?.profileComplete);
+  
+      let isComplete = false;
+  
+      // Case 1 → profileComplete already exists
+      if (data?.profileComplete === true) {
+        isComplete = true;
+      } else {
+        // Case 2 → detect if old user already has data
+        const hasSkills =
+          Array.isArray(data?.skillsOffered) &&
+          data.skillsOffered.length > 0 &&
+          Array.isArray(data?.skillsNeeded) &&
+          data.skillsNeeded.length > 0;
+  
+        const hasBio = data?.bio && data.bio.trim() !== "";
+  
+        if (hasSkills && hasBio) {
+          isComplete = true;
+  
+          // 🔧 Auto-fix old users by saving profileComplete = true
+          await Database.updateUser(user.uid, { profileComplete: true });
+          console.log("✨ Auto-fixed: Old user marked as profileComplete");
+        }
+      }
+  
+      // Redirect if complete
+      if (isComplete) {
+        window.location.replace("dashboard.html");
+        return;
+      }
+  
+      // -----------------------------------------
+      // Populate UI for users completing profile
+      // -----------------------------------------
+      if (data) {
+        document.getElementById("userBio").value = data.bio || "";
+        skillsOffered = data.skillsOffered || [];
+        skillsNeeded = data.skillsNeeded || [];
+  
+        skillsOffered.forEach((s) => addSkillToUI("offered", s));
+        skillsNeeded.forEach((s) => addSkillToUI("needed", s));
+      }
+    });
+  
+    // --------------------------------------------------
+    // 🟢 ADD SKILL
+    // --------------------------------------------------
+    function addSkill(type) {
+      const input = document.getElementById(
+        type === "offered" ? "skillOfferedInput" : "skillNeededInput"
+      );
+      const container = type === "offered" ? offeredContainer : neededContainer;
+      const skill = input.value.trim();
+  
+      if (!skill) return;
+  
+      addSkillToUI(type, skill);
+  
+      if (type === "offered") skillsOffered.push(skill);
+      else skillsNeeded.push(skill);
+  
+      input.value = "";
+      feather.replace();
+    }
+  
+    // --------------------------------------------------
+    // 🔵 ADD SKILL TO UI
+    // --------------------------------------------------
+    function addSkillToUI(type, skill) {
+      const container = type === "offered" ? offeredContainer : neededContainer;
+  
+      const tag = document.createElement("div");
+      tag.className = `skill-tag ${
+        type === "offered" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
+      } px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2`;
+  
+      tag.innerHTML = `
+        <span>${skill}</span>
+        <button type="button" data-skill="${skill}" data-type="${type}">
+          <i data-feather="x" class="w-4 h-4"></i>
+        </button>
+      `;
+  
+      container.appendChild(tag);
+      feather.replace();
+    }
+  
+    // --------------------------------------------------
+    // ❌ REMOVE SKILL
+    // --------------------------------------------------
+    document.body.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-skill]");
+      if (!btn) return;
+  
+      const skill = btn.dataset.skill;
+      const type = btn.dataset.type;
+  
+      if (type === "offered") {
+        skillsOffered = skillsOffered.filter((s) => s !== skill);
+        offeredContainer.querySelector(`[data-skill="${skill}"]`).parentElement.remove();
+      } else {
+        skillsNeeded = skillsNeeded.filter((s) => s !== skill);
+        neededContainer.querySelector(`[data-skill="${skill}"]`).parentElement.remove();
+      }
+    });
+  
+    // --------------------------------------------------
+    // 🟣 BUTTON BINDING
+    // --------------------------------------------------
+    document.getElementById("addOfferedSkillBtn").addEventListener("click", () => addSkill("offered"));
+    document.getElementById("addNeededSkillBtn").addEventListener("click", () => addSkill("needed"));
+  
+    // --------------------------------------------------
+    // 🟠 SUBMIT PROFILE
+    // --------------------------------------------------
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+  
+      const user = auth.currentUser;
+      if (!user) return;
+  
+      const bio = document.getElementById("userBio").value.trim();
+  
+      await Database.updateUser(user.uid, {
+        bio,
+        skillsOffered,
+        skillsNeeded,
+        profileComplete: true,
+      });
+  
+      alert("✅ Profile completed!");
+      window.location.href = "dashboard.html";
+    });
+  
+    feather.replace();
+  </script>
+  
+  <script type="module" src="utils/auth-listener.js"></script>
+
+</body>
+</html>
