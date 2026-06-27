@@ -12,7 +12,7 @@ A peer-to-peer skill exchange platform where users can connect, teach, and learn
 ## Tech Stack
 - HTML, CSS, JavaScript
 - Tailwind CSS for styling
-- Firebase for data storage and real time updates
+- Firebase for Data Storage and Real Time Updates
 - Feather Icons
 
 ## Getting Started
